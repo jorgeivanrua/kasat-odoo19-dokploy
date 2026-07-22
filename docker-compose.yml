@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: odoo_kasat_app
+    restart: always
+    environment:
+      - HOST=db
+      - USER=odoo
+      - PASSWORD=${POSTGRES_PASSWORD:-kasat_db_secure_2026}
+      - ODOO_DB=${ODOO_DB:-fundacion_kasa}
+      - ODOO_ADMIN_PASSWORD=${ODOO_ADMIN_PASSWORD:-admin_kasat_pass}
+    ports:
+      - "8069:8069"
+      - "8072:8072" # Longpolling / Websocket para Odoo 19
+    volumes:
+      - odoo_data:/var/lib/odoo
+      - odoo_extra_addons:/mnt/extra-addons
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - kasat_network
+
+  db:
+    image: postgres:16-alpine
+    container_name: odoo_kasat_db
+    restart: always
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-kasat_db_secure_2026}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kasat_network
+
+volumes:
+  odoo_data:
+    name: odoo_kasat_data
+  odoo_extra_addons:
+    name: odoo_kasat_extra_addons
+  db_data:
+    name: odoo_kasat_db_data
+
+networks:
+  kasat_network:
+    name: odoo_kasat_network
